@@ -13,6 +13,7 @@ namespace SecretSantaBot
 {
     class Program
     {
+        //It's working!!!
         private static TelegramBotClient botClient;
         public static List<Entity> list;
         static void Main(string[] args)
