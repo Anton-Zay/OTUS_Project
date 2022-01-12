@@ -1,143 +1,121 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using LinqToDB;
+using System;
 using System.Linq;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace SecretSantaBot
 {
-    class Command
+    public class Command
     {
-        public List<Entity> entities { get; set; }
-        public void Join(Message message, List<Entity> entities)
+        LinqToDB.Data.DataConnection db = new LinqToDB.Data.DataConnection(LinqToDB.ProviderName.PostgreSQL, Config.SqlConnectionString);
+        public void Join(Message message)
         {
-            this.entities = entities;
+            Console.WriteLine("Зашёл в метод Join");
 
-            if (this.entities.Count > 0)
+            var entity = db.GetTable<Entity>().SingleOrDefault(x => x.User_Id == message.From.Id &&
+                                                                    x.Chat_Id == message.Chat.Id);
+
+            if (entity != null)
             {
-                var joinEntity = this.entities.SingleOrDefault(Entity => Entity.User_Id == message.From.Id);
-                if (joinEntity != null)
-                {
-                    joinEntity.IsActive = true;
-                    return;
-                }
+                entity.IsActive = true;
+                db.Update(entity);
+                Console.WriteLine("Поменял статус");
+                return;
             }
 
-            Entity entity = new Entity
+            entity = new Entity
             {
-                ID = entities.Count + 1,
                 Chat_Id = message.Chat.Id,
                 User_Id = message.From.Id,
-                First_Name = message.From.FirstName,
-                Last_Name = message.From.LastName,
+                First_Name = message.From?.FirstName,
+                Last_Name = message.From?.LastName,
                 IsActive = true
             };
-            if (MyContains(entity, this.entities))
-            {
-                return;
-            }
-            this.entities.Add(entity);
-        }
 
-        public void Wish(Message message, List<Entity> entities)
-        {
-            Entity user = SearchEntity(message, entities);
-
-            if (user == null)
-            {
-                return;
-            }
-            user.Wish = message.Text.Substring(6);
-        }
-
-        public void Exit(Message message, List<Entity> entities)
-        {
-            Entity user = SearchEntity(message, entities);
-
-            if (user == null)
-            {
-                return;
-            }
-            user.IsActive = false;
+            db.Insert(entity);
+            Console.WriteLine("Добавил нового пользователя в базу данных");
 
         }
 
-        async public void Launch(ITelegramBotClient botClient, Message message, List<Entity> entities)
+        public void Wish(Message message)
         {
-            this.entities = entities;
-            if (this.entities.Count == 0)
+            Console.WriteLine("Зашёл в метод Wish");
+
+            var entity = db.GetTable<Entity>().SingleOrDefault(x => x.User_Id == message.From.Id &&
+                                                                    x.Chat_Id == message.Chat.Id);
+
+            if (entity == null)
             {
+                Console.WriteLine("Ничего в методе Wish не сделал");
                 return;
             }
 
-            var launchEntity = this.entities.First(Entity => Entity.User_Id == message.From.Id);
-            if (launchEntity.SantaFor != null)
+            entity.Wish = message.Text.Substring(6);
+            db.Update(entity);
+            Console.WriteLine("Добавил Wish в БД");
+
+        }
+
+        public void Exit(Message message)
+        {
+            Console.WriteLine("Зашёл в метод Exit");
+            var entity = db.GetTable<Entity>().SingleOrDefault(x => x.User_Id == message.From.Id &&
+                                                                    x.Chat_Id == message.Chat.Id);
+
+            if (entity == null)
             {
+                Console.WriteLine("Ничего в методе Exit не сделал");
+                return;
+            }
+            entity.IsActive = false;
+            db.Update<Entity>(entity);
+
+            Console.WriteLine("Поменял статус из метода Exit");
+
+        }
+
+        public async void Launch(ITelegramBotClient botClient, Message message)
+        {
+            Console.WriteLine("Зашёл в метод Launch");
+
+            var table = db.GetTable<Entity>().Where(x => x.Chat_Id == message.Chat.Id &&
+                                                         x.User_Id != message.From.Id &&
+                                                         x.IsActive == true);
+
+            var launchEntity = db.GetTable<Entity>().First(x => x.User_Id == message.From.Id);
+            if (launchEntity.SantaForUserId != 0)
+            {
+                var tmpEntity = table.SingleOrDefault(x => x.User_Id == launchEntity.SantaForUserId);
+                var mess = $"Вы уже являетесь тайным сантой для пользователя {tmpEntity.First_Name} {tmpEntity.Last_Name}";
+                await botClient.SendTextMessageAsync(message.From.Id, mess);
+                Console.WriteLine("Вы уже являетесь тайным сантой");
                 return;
             }
 
-            var validList = new List<Entity>();
-
-            foreach (var item in this.entities)
+            if (table.Count() == 0 || table == null)
             {
-                if (message.From.Id != item.User_Id &&
-                    item.Chat_Id == message.Chat.Id &&
-                    item.IsActive == true &&
-                    item.Gifted == null)
-                {
-                    validList.Add(item);
-                }
-            }
-
-            if (validList.Count == 0)
-            {
+                await botClient.SendTextMessageAsync(message.From.Id, "Нет участников для распределения");
+                Console.WriteLine("Слишком малое количество участников");
                 return;
             }
+
+            var validList = table.Where(x => x.GiftedForUserId == 0).ToList();
 
             var random = new Random();
             Entity user;
 
-            do
-            {
-                user = validList[random.Next(validList.Count)];
-            }
-            while (user.User_Id == message.From.Id);
+            user = validList[random.Next(validList.Count)];
 
             var mes = $"Вы являетесь тайным сантой для пользователя {user.First_Name} {user.Last_Name}\n" +
                 $"Его предпочтения: {user.Wish}";
 
             await botClient.SendTextMessageAsync(message.From.Id, mes);
 
-            launchEntity.SantaFor = user;
-            user.Gifted = launchEntity;
-
-        }
-
-        private bool MyContains(Entity entity, List<Entity> entities)
-        {
-            foreach (var item in entities)
-
-                if (entity.Chat_Id == item.Chat_Id && entity.User_Id == item.User_Id && entity.IsActive == item.IsActive)
-                {
-                    return true;
-                }
-
-            return false;
-        }
-
-        private Entity SearchEntity(Message message, List<Entity> entities)
-        {
-            var user_id = message.From.Id;
-            Entity user = null;
-            foreach (var item in entities)
-            {
-                if (item.User_Id == user_id)
-                {
-                    user = item;
-                    break;
-                }
-            }
-            return user;
+            launchEntity.SantaForUserId = user.User_Id;
+            user.GiftedForUserId = launchEntity.User_Id;
+            db.Update<Entity>(launchEntity);
+            db.Update<Entity>(user);
         }
     }
 }
