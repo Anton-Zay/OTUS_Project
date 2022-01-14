@@ -1,5 +1,4 @@
 ﻿using LinqToDB.Mapping;
-// ReSharper disable StringLiteralTypo
 
 namespace SecretSantaBot
 {
@@ -20,9 +19,6 @@ namespace SecretSantaBot
 
         [Column(Name = "lastname")]
         public string Last_Name { get; set; }
-
-        [Column(Name = "wish")]
-        public string Wish { get; set; }
 
         [Column(Name = "isactive")]
         public bool IsActive { get; set; }
