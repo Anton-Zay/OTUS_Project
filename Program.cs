@@ -1,5 +1,4 @@
-﻿
-namespace SecretSantaBot
+﻿namespace SecretSantaBot
 {
     class Program
     {

@@ -6,14 +6,16 @@ using Telegram.Bot.Exceptions;
 using Telegram.Bot.Extensions.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using SecretSantaBot.Service;
+using LinqToDB.Data;
 
 namespace SecretSantaBot
 {
     class Bot
     {
         private static TelegramBotClient botClient;
-
-        bool isWish = false;
+        private static DataConnection dbToOtus_SecretSantaBase;
+        public static bool isWish;
 
         public async void Start()
         {
@@ -49,38 +51,15 @@ namespace SecretSantaBot
 
             var messageText = update.Message.Text;
 
-            Console.WriteLine($"ID этого сообщения - {update.Message.MessageId}");
-
-            if (messageText == CommandListConstants.START)
+            dbToOtus_SecretSantaBase = new DataConnection(LinqToDB.ProviderName.PostgreSQL, Config.SqlConnectionStringToOtus_SecretSantaBase);
+            var commandFactory = new CommandFactory(botClient, dbToOtus_SecretSantaBase);
+            var command = commandFactory.GetCommand(messageText);
+            if(command == null)
             {
-                new Command().Start(botClient, update.Message);
+                return;
             }
+            await command.Execute(update.Message);
 
-            if (messageText == CommandListConstants.JOIN)
-            {
-                new Command().Join(update.Message);
-            }
-
-            if (isWish)
-            {
-                new Command().Wish(update.Message);
-                isWish = false;
-            }
-
-            if (messageText == CommandListConstants.WISH)
-            {
-                isWish = true;
-            }
-
-            if (messageText == CommandListConstants.EXIT)
-            {
-                new Command().Exit(update.Message);
-            }
-
-            if (messageText == CommandListConstants.LAUNCH)
-            {
-                new Command().Launch(botClient, update.Message);
-            }
         }
 
         Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
