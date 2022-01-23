@@ -1,7 +1,9 @@
-﻿namespace SecretSantaBot.Service
+﻿using Telegram.Bot.Types;
+
+namespace SecretSantaBot.Service
 {
     public interface ICommandFactory
     {
-        ICommand GetCommand(string message);
+        ICommand GetCommand(Message message);
     }
 }

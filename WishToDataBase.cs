@@ -14,6 +14,7 @@ namespace SecretSantaBot
         [Column(Name = "wish")]
         public string Wish { get; set; }
 
-
+        [Column(Name = "iswishaccept")]
+        public bool IsWish { get; set; }
     }
 }

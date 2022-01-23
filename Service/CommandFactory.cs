@@ -1,7 +1,9 @@
 ﻿using LinqToDB.Data;
 using SecretSantaBot.Commands;
-using System;
+using System.Collections.Generic;
+using System.Linq;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace SecretSantaBot.Service
 {
@@ -9,41 +11,35 @@ namespace SecretSantaBot.Service
     {
         private readonly DataConnection dbToOtus_SecretSantaBase;
         private readonly ITelegramBotClient _botClient;
+        private Dictionary<string, ICommand> dictionary;
         public CommandFactory(ITelegramBotClient botClient, DataConnection connection)
         {
             _botClient = botClient;
             dbToOtus_SecretSantaBase = connection;
+
+            dictionary = new Dictionary<string, ICommand>(){
+                { CommandListConstants.START, new StartCommand(_botClient) },
+                { CommandListConstants.JOIN, new JoinCommand(dbToOtus_SecretSantaBase) },
+                { CommandListConstants.EXIT, new ExitCommand(dbToOtus_SecretSantaBase) },
+                { CommandListConstants.WISH, new WishCommand(dbToOtus_SecretSantaBase) },
+                { CommandListConstants.LAUNCH, new LaunchCommand(_botClient, dbToOtus_SecretSantaBase) }
+            };
         }
 
-        public ICommand GetCommand(string message)
+        public ICommand GetCommand(Message message)
         {
             ICommand command = null;
 
-            if (Bot.isWish)
             {
-                command = new WishCommand(dbToOtus_SecretSantaBase);
-                Bot.isWish = false;
-                return command;
+                var entity = dbToOtus_SecretSantaBase.GetTable<WishToDataBase>().SingleOrDefault(x => x.User_Id == message.From.Id);
+
+                if (entity != null && entity.IsWish == true)
+                {
+                    return new AddWishCommand(dbToOtus_SecretSantaBase, entity);
+                }
             }
 
-            switch (message)
-            {
-                case CommandListConstants.START:
-                    command = new StartCommand(_botClient);
-                    break;
-                case CommandListConstants.JOIN:
-                    command = new JoinCommand(dbToOtus_SecretSantaBase);
-                    break;
-                case CommandListConstants.EXIT:
-                    command = new ExitCommand(dbToOtus_SecretSantaBase);
-                    break;
-                case CommandListConstants.WISH:
-                    Bot.isWish = true;
-                    break;
-                case CommandListConstants.LAUNCH:
-                    command = new LaunchCommand(_botClient, dbToOtus_SecretSantaBase);
-                    break;
-            }
+            command = dictionary.GetValueOrDefault(message.Text);
 
             return command;
         }

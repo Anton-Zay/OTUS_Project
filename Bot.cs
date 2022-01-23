@@ -14,8 +14,7 @@ namespace SecretSantaBot
     class Bot
     {
         private static TelegramBotClient botClient;
-        private static DataConnection dbToOtus_SecretSantaBase;
-        public static bool isWish;
+        private DataConnection dbToOtus_SecretSantaBase;
 
         public async void Start()
         {
@@ -49,7 +48,7 @@ namespace SecretSantaBot
             if (update.Message!.Type != MessageType.Text)
                 return;
 
-            var messageText = update.Message.Text;
+            var messageText = update.Message;
 
             dbToOtus_SecretSantaBase = new DataConnection(LinqToDB.ProviderName.PostgreSQL, Config.SqlConnectionStringToOtus_SecretSantaBase);
             var commandFactory = new CommandFactory(botClient, dbToOtus_SecretSantaBase);

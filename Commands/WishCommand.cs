@@ -25,21 +25,20 @@ namespace SecretSantaBot.Commands
 
             if (entity != null)
             {
-                entity.Wish = message.Text;
+                entity.IsWish = true;
                 dbToOtus_SecretSantaBase.Update(entity);
-                Console.WriteLine("обновил Wish в базе данных");
+                Console.WriteLine("поменял iswishaccept на true в базе данных");
                 return;
             }
 
             entity = new WishToDataBase
             {
                 User_Id = message.From.Id,
-                Wish = message.Text
+                IsWish = true
             };
 
-            entity.Wish = message.Text;
             dbToOtus_SecretSantaBase.Insert(entity);
-            Console.WriteLine("Добавил Wish в БД");
+            Console.WriteLine("Добавил юзера в БД с параметром iswishaccept = true");
         }
     }
 }
